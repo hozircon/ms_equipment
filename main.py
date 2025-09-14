@@ -5,6 +5,7 @@ import threading
 import msvcrt
 import sys
 import os
+from PIL import Image
 
 # 全域旗標
 running = True
@@ -33,24 +34,26 @@ attribute_imgs = {
 }
 
 
+
 def detect_attribute():
     """
-    偵測畫面屬性，回傳 {屬性: 總和百分比}
+    每輪先截圖，再對所有模板比對
     """
-    result = {"STR": 0, "DEX": 0, "INT": 0, "LUK": 0, "ALL": 0}
+    result = {attr:0 for attr in attribute_imgs}
+    screenshot = pyautogui.screenshot(region=region)  # 截圖一次
 
     for attr, files in attribute_imgs.items():
         for val, filename in files.items():
             filepath = os.path.join(ATTRIBUTE_PATH, filename)
             try:
-                if pyautogui.locateOnScreen(filepath, region=region, confidence=0.95):
-                    print(f"偵測到 {attr} +{val}%")
+                template = Image.open(filepath)
+                if pyautogui.locate(template, screenshot, confidence=0.95):
                     result[attr] += int(val)
-            except Exception as e:
-                print(f"檢測 {filepath} 時發生錯誤: {e}")
+                    print(f"檢測屬性 {attr} : {val}%")
+            except:
+                pass
 
     return result
-
 
 def should_stop(mode, detected, target_attr=None):
     """
@@ -61,66 +64,6 @@ def should_stop(mode, detected, target_attr=None):
     elif mode == 3 and target_attr:  # 指定屬性 >= 9%
         return detected.get(target_attr.upper(), 0) >= 9
     return False
-
-
-def find_and_click(mode, target_attr=None):
-    global running
-    while running:
-        time.sleep(0.1)
-
-        # mode 1：原始 normal.png 機制
-        if mode == 1:
-            try:
-                # 偵測 normal.png
-                normal_found = pyautogui.locateCenterOnScreen(normal, region=region, confidence=0.8)
-                if normal_found:  # 找到 normal
-                    try:
-                        x1, y1 = pyautogui.locateCenterOnScreen(agin_new, region=region, confidence=0.7)
-                        if x1 and y1:
-                            pydirectinput.click(x1, y1)
-                            time.sleep(0.05)
-                            pydirectinput.press("space")
-                            time.sleep(0.05)
-                            pydirectinput.moveTo(x1, y1 - 80)
-                            time.sleep(0.05)
-                    except pyautogui.ImageNotFoundException:
-                        print(f"未能找到圖像：{agin_new}")
-            except pyautogui.ImageNotFoundException:
-                print("normal.png 圖片不存在或讀取失敗")
-            except Exception as e:
-                print(f"其他錯誤: {str(e)}")
-            continue
-
-        # mode 2 / mode 3：進階屬性篩選
-
-        try:
-            # 偵測 normal.png
-            special_found = pyautogui.locateCenterOnScreen(special, region=region, confidence=0.8)
-            if special_found:  # 找到 normal
-                detected = detect_attribute()
-                print("屬性偵測結果:", detected)
-
-                if should_stop(mode, detected, target_attr):
-                    print("達成停止條件，結束程式")
-                    running = False
-                    break
-                else:
-                    try:
-                        x1, y1 = pyautogui.locateCenterOnScreen(agin_new, region=region, confidence=0.7)
-                        if x1 and y1:
-                            pydirectinput.click(x1, y1)
-                            time.sleep(0.05)
-                            pydirectinput.press("space")
-                            time.sleep(0.05)
-                            pydirectinput.moveTo(x1, y1 - 80)
-                            time.sleep(0.05)
-                    except pyautogui.ImageNotFoundException:
-                        print(f"未能找到圖像：{agin_new}")
-        except pyautogui.ImageNotFoundException:
-            print("special.png 圖片不存在或讀取失敗")
-        except Exception as e:
-            print(f"其他錯誤: {str(e)}")
-        continue
 
 def find_and_press(mode, target_attr=None):
     global running
@@ -141,7 +84,7 @@ def find_and_press(mode, target_attr=None):
                             pydirectinput.press("space")
                             time.sleep(0.05)
                             pydirectinput.press("space")
-                            time.sleep(0.01)
+                            time.sleep(0.5) # 等待畫面更新，再少會偵測到更新前畫面
                     except pyautogui.ImageNotFoundException:
                         print(f"未能找到圖像：{agin_new}")
             except pyautogui.ImageNotFoundException:
@@ -155,7 +98,7 @@ def find_and_press(mode, target_attr=None):
         try:
             # 偵測 normal.png
             special_found = pyautogui.locateCenterOnScreen(special, region=region, confidence=0.8)
-            if special_found:  # 找到 normal
+            if special_found:  # 找到 special
                 detected = detect_attribute()
                 print("屬性偵測結果:", detected)
 
@@ -172,7 +115,7 @@ def find_and_press(mode, target_attr=None):
                             pydirectinput.press("space")
                             time.sleep(0.05)
                             pydirectinput.press("space")
-                            time.sleep(0.01)
+                            time.sleep(0.5) # 等待畫面更新，再少會偵測到更新前畫面
                     except pyautogui.ImageNotFoundException:
                         print(f"未能找到圖像：{agin_new}")
         except pyautogui.ImageNotFoundException:
